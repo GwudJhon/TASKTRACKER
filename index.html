@@ -162,12 +162,7 @@ button {
 
 <!-- ACTIVE -->
 <div id="activeBox" class="active-bottom" style="display:none">
-  <div id="activeName"></div>
-  <div class="timer" id="timer">00:00:00</div>
-  <div class="row">
-    <button onclick="stopTask('completed')">Complete</button>
-    <button onclick="stopTask('cancelled')">Cancel</button>
-  </div>
+  <div id="activeContainer"></div>
 </div>
 
 <script type="module">
@@ -179,8 +174,7 @@ const supabase = createClient(
 );
 
 let tasks = [];
-let active = null;
-let startTime = null;
+let activeTasks = [];
 let timer = null;
 const colors = {};
 
@@ -272,66 +266,54 @@ async function loadActive(){
   const { data } = await supabase
     .from("events")
     .select("*")
-    .eq("status","running")
-    .limit(1);
+    .eq("status","running");
 
-  if(data?.length) setActive(data[0]);
+  activeTasks = data || [];
+  renderActiveTasks();
 }
 
 window.startTask = async (task)=>{
-  await stopTask("cancelled", false);
 
-  const { data } = await supabase.from("events")
+  await loadActive();
+
+  if (activeTasks.length >= 2) {
+    alert(
+      "Stop at least one task, you are not an octopus, or at least relax and finish one, then do the other."
+    );
+    return;
+  }
+
+  const { data } = await supabase
+    .from("events")
     .insert({
       task_id: task.id,
       task_name: task.name,
       group_name: task.group_name,
-      status:"running",
+      status: "running",
       started_at: new Date().toISOString()
-    }).select();
+    })
+    .select();
 
-  setActive(data[0]);
+  activeTasks.push(data[0]);
+  renderActiveTasks();
 };
 
-function setActive(ev){
-  active = ev;
-  startTime = new Date(ev.started_at);
-
-  activeBox.style.display = "block";
-  activeName.innerText = ev.task_name;
-
-  clearInterval(timer);
-  updateTimer();
-  timer = setInterval(updateTimer,1000);
-}
-
-function updateTimer(){
-  const el = document.getElementById("timer");
-  if(!startTime || !el) return;
-
-  const diff = Math.floor((Date.now()-startTime)/1000);
-
-  const h = String(Math.floor(diff/3600)).padStart(2,"0");
-  const m = String(Math.floor(diff%3600/60)).padStart(2,"0");
-  const s = String(diff%60).padStart(2,"0");
-
-  el.innerText = `${h}:${m}:${s}`;
-}
-
 /* STOP */
-window.stopTask = async (status)=>{
-  if(!active) return;
+window.stopTask = async (id, status)=>{
 
-  await supabase.from("events")
+  await supabase
+    .from("events")
     .update({
       status,
       ended_at: new Date().toISOString()
     })
-    .eq("id",active.id);
+    .eq("id", id);
 
-  active = null;
-  activeBox.style.display = "none";
-  clearInterval(timer);
+  activeTasks = activeTasks.filter(
+    x => x.id !== id
+  );
+
+  renderActiveTasks();
 
   loadTasks();
   refreshComposition();
@@ -438,6 +420,66 @@ function renderBar(events, period, bar, legend) {
         </div>
       `;
     });
+}
+
+function updateAllTimers() {
+
+  activeTasks.forEach(task => {
+
+    const el = document.getElementById(`timer-${task.id}`);
+    if (!el) return;
+
+    const start = new Date(task.started_at);
+    const diff = Math.floor((Date.now() - start) / 1000);
+
+    const h = String(Math.floor(diff / 3600)).padStart(2, "0");
+    const m = String(Math.floor((diff % 3600) / 60)).padStart(2, "0");
+    const s = String(diff % 60).padStart(2, "0");
+
+    el.innerText = `${h}:${m}:${s}`;
+  });
+}
+
+function renderActiveTasks() {
+  activeContainer.innerHTML = "";
+
+  if (activeTasks.length === 0) {
+    activeBox.style.display = "none";
+    return;
+  }
+
+  activeBox.style.display = "block";
+
+  activeTasks.forEach(task => {
+    const div = document.createElement("div");
+    div.style.marginBottom = "12px";
+
+    div.innerHTML = `
+      <div><b>${task.task_name}</b></div>
+      <div class="timer" id="timer-${task.id}">00:00:00</div>
+      <div class="row">
+        <button class="complete-btn">Complete</button>
+        <button class="cancel-btn">Cancel</button>
+      </div>
+    `;
+
+    div.querySelector(".complete-btn")
+      .addEventListener("click", () => {
+        stopTask(task.id, "completed");
+      });
+
+    div.querySelector(".cancel-btn")
+      .addEventListener("click", () => {
+        stopTask(task.id, "cancelled");
+      });
+
+    activeContainer.appendChild(div);
+  });
+
+  updateAllTimers();
+
+  clearInterval(timer);
+  timer = setInterval(updateAllTimers, 1000);
 }
 
 /* MODAL */
