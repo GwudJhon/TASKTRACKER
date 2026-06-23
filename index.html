@@ -409,17 +409,25 @@ function renderBar(events, period, bar, legend) {
 
       bar.appendChild(seg);
 
-      const hours = seconds / 3600;
+      const duration = formatDuration(seconds);
 
       legend.innerHTML += `
         <div style="font-size:12px">
           <span style="color:${color(group)}">■</span>
           ${group}
           — ${pct.toFixed(1)}%
-          (${hours.toFixed(2)}h)
+          (${duration})
         </div>
       `;
     });
+}
+
+function formatDuration(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 }
 
 function updateAllTimers() {
