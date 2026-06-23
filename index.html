@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Tracker</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #111;
+  color: #eee;
+  margin: 0;
+  padding: 10px;
+}
+
+.container {
+  max-width: 520px;
+  margin: auto;
+  padding-bottom: 120px;
+}
+
+.card {
+  background: #1c1c1c;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+}
+
+.title {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+button, input, select {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border: none;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+button {
+  background: #2d6cdf;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.composition-bar {
+  display: flex;
+  height: 18px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #222;
+}
+
+.segment { height: 100%; }
+
+.legend {
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: #1c1c1c;
+  padding: 15px;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 10px;
+}
+
+.task-result {
+  padding: 8px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+}
+
+.task-result:hover {
+  background: #333;
+}
+
+.active-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1c1c1c;
+  border-top: 2px solid #2d6cdf;
+  padding: 10px;
+}
+
+.timer {
+  text-align: center;
+  font-size: 22px;
+  margin: 6px 0;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.row button {
+  flex: 1;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Task Tracker</h2>
+
+  <div class="card">
+    <div class="title">Week</div>
+    <div id="weekBar" class="composition-bar"></div>
+    <div id="weekLegend"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">Today</div>
+    <div id="todayBar" class="composition-bar"></div>
+    <div id="todayLegend"></div>
+  </div>
+
+  <button onclick="openModal()">＋</button>
+
+  <div class="card">
+    <select id="groupFilter" onchange="renderSearch()"></select>
+    <input id="searchInput" placeholder="Search task..." oninput="renderSearch()">
+    <div id="searchResults"></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <h3>Create</h3>
+
+    <input id="groupInput" placeholder="New group">
+    <button onclick="createGroup()">Create Group</button>
+
+    <input id="taskInput" placeholder="Task name">
+    <select id="groupSelect"></select>
+    <button onclick="createTask()">Create Task</button>
+
+    <button onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<!-- ACTIVE -->
+<div id="activeBox" class="active-bottom" style="display:none">
+  <div id="activeName"></div>
+  <div class="timer" id="timer">00:00:00</div>
+  <div class="row">
+    <button onclick="stopTask('completed')">Complete</button>
+    <button onclick="stopTask('cancelled')">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://bupgcvfwjkxzukhcpjec.supabase.co",
+  "sb_publishable_K3IESGGwXNATKTESVZOufg_3AOkIfK4"
+);
+
+let tasks = [];
+let active = null;
+let startTime = null;
+let timer = null;
+const colors = {};
+
+function color(g){
+  if(colors[g]) return colors[g];
+  colors[g] = `hsl(${Math.random()*360},70%,55%)`;
+  return colors[g];
+}
+
+/* INIT */
+init();
+async function init(){
+  await loadGroups();
+  await loadTasks();
+  await loadActive();
+  await refreshComposition();
+}
+
+/* GROUPS */
+window.createGroup = async () => {
+  const name = groupInput.value;
+  if(!name) return;
+
+  await supabase.from("tasks").insert({
+    name: "__GROUP__",
+    group_name: name
+  });
+
+  groupInput.value = "";
+  loadGroups();
+};
+
+async function loadGroups(){
+  const { data } = await supabase.from("tasks").select("group_name");
+
+  const groups = [...new Set((data||[]).map(x=>x.group_name))];
+
+  groupSelect.innerHTML = "";
+  groupFilter.innerHTML = `<option value="all">All</option>`;
+
+  groups.forEach(g=>{
+    groupSelect.innerHTML += `<option>${g}</option>`;
+    groupFilter.innerHTML += `<option value="${g}">${g}</option>`;
+  });
+}
+
+/* TASKS */
+window.createTask = async () => {
+  await supabase.from("tasks").insert({
+    name: taskInput.value,
+    group_name: groupSelect.value
+  });
+
+  taskInput.value = "";
+  loadTasks();
+};
+
+async function loadTasks(){
+  const { data } = await supabase.from("tasks").select("*");
+  tasks = (data||[]).filter(t=>t.name !== "__GROUP__");
+  renderSearch();
+}
+
+/* SEARCH */
+window.renderSearch = function(){
+  const term = searchInput.value.toLowerCase();
+  const group = groupFilter.value;
+
+  const res = tasks.filter(t=>{
+    return (
+      (group === "all" || t.group_name === group) &&
+      t.name.toLowerCase().includes(term)
+    );
+  });
+
+  searchResults.innerHTML = "";
+
+  res.forEach(t=>{
+    const div = document.createElement("div");
+    div.className = "task-result";
+    div.innerHTML = `<b>${t.name}</b><br><small>${t.group_name}</small>`;
+    div.onclick = ()=>startTask(t);
+    searchResults.appendChild(div);
+  });
+};
+
+/* ACTIVE */
+async function loadActive(){
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .eq("status","running")
+    .limit(1);
+
+  if(data?.length) setActive(data[0]);
+}
+
+window.startTask = async (task)=>{
+  await stopTask("cancelled", false);
+
+  const { data } = await supabase.from("events")
+    .insert({
+      task_id: task.id,
+      task_name: task.name,
+      group_name: task.group_name,
+      status:"running",
+      started_at: new Date().toISOString()
+    }).select();
+
+  setActive(data[0]);
+};
+
+function setActive(ev){
+  active = ev;
+  startTime = new Date(ev.started_at);
+
+  activeBox.style.display = "block";
+  activeName.innerText = ev.task_name;
+
+  clearInterval(timer);
+  updateTimer();
+  timer = setInterval(updateTimer,1000);
+}
+
+function updateTimer(){
+  const el = document.getElementById("timer");
+  if(!startTime || !el) return;
+
+  const diff = Math.floor((Date.now()-startTime)/1000);
+
+  const h = String(Math.floor(diff/3600)).padStart(2,"0");
+  const m = String(Math.floor(diff%3600/60)).padStart(2,"0");
+  const s = String(diff%60).padStart(2,"0");
+
+  el.innerText = `${h}:${m}:${s}`;
+}
+
+/* STOP */
+window.stopTask = async (status)=>{
+  if(!active) return;
+
+  await supabase.from("events")
+    .update({
+      status,
+      ended_at: new Date().toISOString()
+    })
+    .eq("id",active.id);
+
+  active = null;
+  activeBox.style.display = "none";
+  clearInterval(timer);
+
+  loadTasks();
+  refreshComposition();
+};
+
+/* AUTO CANCEL 24H */
+async function autoCancelOld(){
+  const limit = new Date(Date.now()-86400000).toISOString();
+
+  await supabase.from("events")
+    .update({status:"cancelled"})
+    .eq("status","running")
+    .lt("started_at",limit);
+}
+
+/* COMPOSITION */
+async function refreshComposition(){
+  await autoCancelOld();
+
+  const { data } = await supabase.from("events")
+    .select("*")
+    .neq("status","running");
+
+  renderBar(data,"week",weekBar,weekLegend);
+  renderBar(data,"today",todayBar,todayLegend);
+}
+
+function renderBar(events, period, bar, legend) {
+
+  let start;
+
+  if (period === "today") {
+
+    start = new Date();
+    start.setHours(0,0,0,0);
+
+  } else if (period === "week") {
+
+    start = new Date();
+    start.setHours(0,0,0,0);
+
+    const dayOfWeek = start.getDay(); // Sunday=0
+    start.setDate(start.getDate() - dayOfWeek);
+  }
+
+  const startMs = start.getTime();
+
+  const groups = {};
+  let totalSeconds = 0;
+
+  events.forEach(e => {
+
+    if (e.status !== "completed") return;
+    if (!e.ended_at) return;
+
+    const started = new Date(e.started_at).getTime();
+    const ended = new Date(
+      e.ended_at.endsWith("Z") ||
+      e.ended_at.includes("+")
+        ? e.ended_at
+        : e.ended_at + "Z"
+    ).getTime();
+
+    if (started < startMs) return;
+
+    const duration = (ended - started) / 1000;
+
+    if (duration <= 0) return;
+
+    groups[e.group_name] =
+      (groups[e.group_name] || 0) + duration;
+
+    totalSeconds += duration;
+    
+  });
+
+  bar.innerHTML = "";
+  legend.innerHTML = "";
+
+  Object.entries(groups)
+    .sort((a,b) => b[1] - a[1])
+    .forEach(([group, seconds]) => {
+
+      const pct =
+        totalSeconds > 0
+          ? (seconds / totalSeconds) * 100
+          : 0;
+
+      const seg = document.createElement("div");
+      seg.className = "segment";
+      seg.style.width = pct + "%";
+      seg.style.background = color(group);
+
+      bar.appendChild(seg);
+
+      const hours = seconds / 3600;
+
+      legend.innerHTML += `
+        <div style="font-size:12px">
+          <span style="color:${color(group)}">■</span>
+          ${group}
+          — ${pct.toFixed(1)}%
+          (${hours.toFixed(2)}h)
+        </div>
+      `;
+    });
+}
+
+/* MODAL */
+window.openModal = ()=> modal.style.display="flex";
+window.closeModal = ()=> modal.style.display="none";
+</script>
+
+</body>
+</html>
