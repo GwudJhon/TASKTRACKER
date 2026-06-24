@@ -113,6 +113,25 @@ button {
 .row button {
   flex: 1;
 }
+
+.segment:hover {
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+#timelineWrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid #333;
+  padding: 10px 0;
+}
+
+.timeline-bar {
+  height: 35px;
+  margin-top: 10px;
+  min-width: 100%;
+  white-space: nowrap;
+}
 </style>
 </head>
 
@@ -120,7 +139,68 @@ button {
 
 <div class="container">
 
-  <h2>Task Tracker</h2>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button
+      style="width:auto;padding:8px 14px"
+      onclick="openTimeline()">
+      📈
+    </button>
+
+    <h2 style="margin:0;">Task Tracker</h2>
+  </div>
+
+  <div id="timelineModal" class="modal">
+    <div class="modal-content">
+
+      <h3>Timeline</h3>
+
+      <div style="display:flex;gap:10px;">
+
+        <button onclick="changeDay(-1)">
+          ←
+        </button>
+
+        <input
+          type="date"
+          id="timelineDatePicker"
+          onchange="renderTimeline()">
+
+        <button onclick="changeDay(1)">
+          →
+        </button>
+
+      </div>
+
+      <div id="timelineDate"></div>
+
+      <div id="timelineWrapper">
+        <div style="display:flex;gap:10px;">
+          <button onclick="zoomOut()">－</button>
+          <button onclick="zoomIn()">＋</button>
+        </div>
+        <div
+          id="timeline1"
+          class="composition-bar timeline-bar">
+        </div>
+
+        <div
+          id="timeline2"
+          class="composition-bar timeline-bar">
+        </div>
+
+      </div>
+
+      <div
+        id="timelineLegend"
+        style="margin-top:20px">
+      </div>
+
+      <button onclick="closeTimeline()">
+        Close
+      </button>
+
+    </div>
+  </div>
 
   <div class="card">
     <div class="title">Week</div>
@@ -174,6 +254,7 @@ const supabase = createClient(
 );
 
 let tasks = [];
+let timelineZoom = 1;
 let activeTasks = [];
 let timer = null;
 const colors = {};
@@ -493,6 +574,281 @@ function renderActiveTasks() {
 /* MODAL */
 window.openModal = ()=> modal.style.display="flex";
 window.closeModal = ()=> modal.style.display="none";
+
+/* TIMELINE */
+window.openTimeline = async ()=>{
+
+  timelineModal.style.display = "flex";
+
+  if (!timelineDatePicker.value) {
+    timelineDatePicker.value =
+      toInputDate(new Date());
+  }
+
+  await renderTimeline();
+};
+
+window.closeTimeline = ()=>{
+  timelineModal.style.display = "none";
+};
+
+async function renderTimeline(){
+
+  const selected =
+    timelineDatePicker.value
+    || new Date().toISOString().split("T")[0];
+
+  const [y, m, d] =
+    selected.split("-").map(Number);
+
+  const start =
+    new Date(y, m - 1, d, 0, 0, 0, 0);
+
+  const end =
+    new Date(y, m - 1, d, 23, 59, 59, 999);
+
+  timelineDate.innerText =
+    start.toLocaleDateString(
+      "pt-BR",
+      {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }
+    );
+
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .in("status", ["completed", "running"])
+    .lte("started_at", end.toISOString())
+    .gte("ended_at", start.toISOString())
+    .order("started_at");
+
+  const events = data || [];
+
+  let viewStart = start;
+  let viewEnd = end;
+
+  if (events.length) {
+    const first = Math.min(
+      ...events.map(e =>
+        new Date(e.started_at).getTime()
+      )
+    );
+
+    const last = Math.max(
+      ...events.map(e => {
+        if (e.status === "running")
+          return Date.now();
+
+        return new Date(e.ended_at).getTime();
+      })
+    );
+
+    const padding = 15 * 60 * 1000;
+
+    viewStart = new Date(first - padding);
+    viewEnd = new Date(last + padding);
+  }
+
+  buildTimeline(
+    events,
+    viewStart,
+    viewEnd
+  );
+
+  applyTimelineZoom();
+}
+
+function buildTimeline(events, startDay, endDay){
+
+  const lane1 = [];
+  const lane2 = [];
+
+  events.forEach(e=>{
+
+    const start =
+      new Date(e.started_at).getTime();
+
+    const end =
+      new Date(e.ended_at).getTime();
+
+    if (end < startDay.getTime())
+      return;
+
+    if (start > endDay.getTime())
+      return;
+
+    const segment = {
+      ...e,
+      start,
+      end
+    };
+
+    const overlap = lane1.some(x =>
+      start < x.end &&
+      end > x.start
+    );
+
+    if (overlap)
+      lane2.push(segment);
+    else
+      lane1.push(segment);
+  });
+
+  renderLane(
+    lane1,
+    timeline1,
+    startDay,
+    endDay
+  );
+
+  renderLane(
+    lane2,
+    timeline2,
+    startDay,
+    endDay
+  );
+
+}
+
+function renderLane(
+  segments,
+  container,
+  startDay,
+  endDay
+){
+
+  container.innerHTML = "";
+
+  const startMs =
+    startDay.getTime();
+
+  const totalMs =
+    endDay.getTime() -
+    startMs;
+
+  let cursor = startMs;
+
+  segments.forEach(s=>{
+
+  const segStart =
+    Math.max(s.start, startMs);
+
+  const segEnd =
+    Math.min(
+      s.end,
+      endDay.getTime()
+    );
+
+  if (segStart > cursor){
+
+      const gap =
+        document.createElement("div");
+
+      gap.className = "segment";
+      gap.style.background = "#444";
+      gap.style.width =
+        ((segStart - cursor) / totalMs * 100)
+        + "%";
+
+      container.appendChild(gap);
+    }
+
+    const seg =
+      document.createElement("div");
+
+    seg.className = "segment";
+    seg.style.background =
+      color(s.group_name);
+
+    seg.style.width =
+      ((segEnd - segStart) / totalMs * 100)
+      + "%";
+
+    seg.title =
+      `${s.task_name}
+  ${new Date(s.started_at)
+    .toLocaleTimeString("pt-BR")}
+  -
+  ${new Date(s.ended_at)
+    .toLocaleTimeString("pt-BR")}`;
+
+    container.appendChild(seg);
+
+    cursor = segEnd;
+  });
+
+  if (cursor < endDay.getTime()){
+
+    const gap =
+      document.createElement("div");
+
+    gap.className = "segment";
+    gap.style.background = "#444";
+
+    gap.style.width =
+      ((endDay.getTime()-cursor)
+      /totalMs*100)
+      + "%";
+
+    container.appendChild(gap);
+  }
+}
+
+window.zoomIn = () => {
+  timelineZoom *= 1.5;
+  applyTimelineZoom();
+};
+
+window.zoomOut = () => {
+  timelineZoom /= 1.5;
+
+  if (timelineZoom < 1)
+    timelineZoom = 1;
+
+  applyTimelineZoom();
+};
+
+function applyTimelineZoom() {
+  const width = 100 * timelineZoom;
+
+  timeline1.style.width = width + "%";
+  timeline2.style.width = width + "%";
+}
+
+window.changeDay = (days) => {
+
+  const [y, m, d] =
+    timelineDatePicker.value
+      .split("-")
+      .map(Number);
+
+  const date = new Date(
+    y,
+    m - 1,
+    d
+  );
+
+  date.setDate(
+    date.getDate() + days
+  );
+
+  timelineDatePicker.value =
+    toInputDate(date);
+
+  renderTimeline();
+};
+
+function toInputDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 </script>
 
 </body>
