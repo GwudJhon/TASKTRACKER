@@ -315,7 +315,9 @@ window.createTask = async () => {
 
 async function loadTasks(){
   const { data } = await supabase.from("tasks").select("*");
-  tasks = (data||[]).filter(t=>t.name !== "__GROUP__");
+  tasks = (data || []).filter(
+    t => t.name !== "__GROUP__" && !t.archived
+  );
   renderSearch();
 }
 
@@ -336,10 +338,80 @@ window.renderSearch = function(){
   res.forEach(t=>{
     const div = document.createElement("div");
     div.className = "task-result";
-    div.innerHTML = `<b>${t.name}</b><br><small>${t.group_name}</small>`;
-    div.onclick = ()=>startTask(t);
+    div.innerHTML = `
+      <div>
+        <b>${t.name}</b><br>
+        <small>${t.group_name}</small>
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <button class="start-btn">Start</button>
+        <button class="edit-btn">✏️</button>
+        <button class="delete-btn">🗑️</button>
+      </div>
+    `;
     searchResults.appendChild(div);
+    div.querySelector(".start-btn")
+      .addEventListener("click", () => {
+        startTask(t);
+      });
+
+    div.querySelector(".edit-btn")
+      .addEventListener("click", async (e) => {
+        e.stopPropagation();
+        editTask(t);
+      });
+
+    div.querySelector(".delete-btn")
+      .addEventListener("click", async (e) => {
+        e.stopPropagation();
+        deleteTask(t);
+      });
   });
+};
+
+window.editTask = async (task) => {
+  const newName = prompt(
+    "Rename task:",
+    task.name
+  );
+
+  if (!newName) return;
+
+  await supabase
+    .from("tasks")
+    .update({
+      name: newName
+    })
+    .eq("id", task.id);
+
+  await loadTasks();
+};
+
+window.deleteTask = async (task) => {
+  const ok = confirm(
+    `Delete "${task.name}"?\n\nThis won't erase history.`
+  );
+
+  if (!ok) return;
+
+  const running = activeTasks.some(
+    x => x.task_id === task.id
+  );
+
+  if (running) {
+    alert("Stop the task first.");
+    return;
+  }
+
+  await supabase
+    .from("tasks")
+    .update({
+      archived: true
+    })
+    .eq("id", task.id);
+
+  await loadTasks();
 };
 
 /* ACTIVE */
