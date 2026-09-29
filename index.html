@@ -73,6 +73,11 @@
 		.section-heading { display: flex; align-items: baseline; justify-content: space-between; margin: 36px 0 14px; }
 		.section-heading h2 { margin: 0; font-size: 17px; font-weight: 700; }
 		.section-heading span { color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+		.section-title-wrap { display: flex; align-items: baseline; gap: 10px; }
+		.routine-tools { display: flex; align-items: center; gap: 6px; }
+		.routine-tool { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
+		.routine-tool:hover { border-color: var(--lime); color: var(--lime); }
+		.draft-tag { color: var(--lime); font: 9px var(--mono); white-space: nowrap; }
 		.workout-list { display: grid; gap: 10px; }
 		.empty-state { padding: 29px 20px; border: 1px dashed #c7cbc0; border-radius: 16px; color: var(--muted); text-align: center; }
 		.empty-mark { display: grid; width: 42px; height: 42px; margin: 0 auto 12px; place-items: center; border-radius: 14px; background: #e6eadb; color: var(--green); }
@@ -224,7 +229,10 @@
 		</section>
 
 		<section aria-labelledby="recent-heading">
-			<div class="section-heading"><h2 id="recent-heading">Your workouts</h2><span id="recent-count">0 workouts</span></div>
+			<div class="section-heading">
+				<div class="section-title-wrap"><h2 id="recent-heading">Your workouts</h2><span id="recent-count">0 workouts</span></div>
+				<div class="routine-tools"><button class="routine-tool" id="export-workouts" type="button" title="Export routines"><i data-lucide="download"></i><span>Export</span></button><button class="routine-tool" id="import-workouts-button" type="button" title="Import routines"><i data-lucide="upload"></i><span>Import</span></button><input id="import-workouts-file" type="file" accept="application/json,.json" hidden></div>
+			</div>
 			<div class="workout-list" id="workout-list"></div>
 		</section>
 		<section aria-labelledby="completed-heading">
@@ -309,6 +317,7 @@
 		(() => {
 			const STORAGE_KEY = 'forma-workouts-v1';
 			const TRAINING_STORAGE_KEY = 'forma-training-sessions-v1';
+			const TRAINING_DRAFTS_KEY = 'forma-training-drafts-v1';
 			const PRIZES_STORAGE_KEY = 'forma-kuiper-prizes-v1';
 			const PURCHASES_STORAGE_KEY = 'forma-kuiper-purchases-v1';
 			const modal = document.querySelector('#workout-modal');
@@ -344,6 +353,51 @@
 					return [];
 				}
 			};
+
+			const readTrainingDrafts = () => {
+				try {
+					const saved = JSON.parse(localStorage.getItem(TRAINING_DRAFTS_KEY) || '{}');
+					return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+				} catch {
+					return {};
+				}
+			};
+
+			function saveTrainingDraft() {
+				if (!activeWorkout) return;
+				const drafts = readTrainingDrafts();
+				drafts[activeWorkout.id] = {
+					workoutId: activeWorkout.id,
+					exercises: [...trainingExercises.querySelectorAll('.training-exercise')].map((card) => ({
+						name: card.querySelector('.training-exercise-title').textContent,
+						minimumSets: Number(card.dataset.minimumSets),
+						minimumReps: Number(card.dataset.minimumReps),
+						oneOff: card.dataset.oneOff === 'true',
+						sets: [...card.querySelectorAll('.set-line')].map((row) => ({
+							reps: Number(row.querySelector('[aria-label="Reps completed"]').value) || 0,
+							weight: row.querySelector('[aria-label="Weight used in kilograms"]').value
+						}))
+					})),
+					addExerciseOpen: !document.querySelector('#session-add-fields').hidden,
+					newExerciseName: document.querySelector('#session-exercise-name').value,
+					newExerciseSets: document.querySelector('#session-exercise-sets').value,
+					newExerciseReps: document.querySelector('#session-exercise-reps').value,
+					timerElapsedMs: elapsedTimerMs(),
+					timerRunning,
+					timerSavedAt: Date.now()
+				};
+				try {
+					localStorage.setItem(TRAINING_DRAFTS_KEY, JSON.stringify(drafts));
+				} catch {
+					showToast('Draft could not be saved. Browser storage may be full.');
+				}
+			}
+
+			function deleteTrainingDraft(workoutId) {
+				const drafts = readTrainingDrafts();
+				delete drafts[workoutId];
+				localStorage.setItem(TRAINING_DRAFTS_KEY, JSON.stringify(drafts));
+			}
 
 			const readStoreItems = (key) => {
 				try {
@@ -467,20 +521,35 @@
 
 			function startWorkout(workout) {
 				activeWorkout = workout;
-				resetTimer();
-				startTimer();
+				const draft = readTrainingDrafts()[workout.id];
+				timerElapsedMs = Number(draft?.timerElapsedMs) || 0;
+				timerRunning = false;
+				if (draft?.timerRunning && Number.isFinite(draft.timerSavedAt)) timerElapsedMs += Math.max(0, Date.now() - draft.timerSavedAt);
 				document.querySelector('#training-title').textContent = workout.name || `${workout.exercises[0]?.name || 'Training'} workout`;
 				trainingExercises.replaceChildren();
-				workout.exercises.forEach((exercise) => addTrainingExercise(exercise));
-				document.querySelector('#session-add-fields').hidden = true;
-				document.querySelector('#session-exercise-name').value = '';
+				const exercisesToRender = draft?.exercises || workout.exercises;
+				exercisesToRender.forEach((exercise) => addTrainingExercise(exercise, exercise.oneOff === true, exercise.sets));
+				document.querySelector('#session-add-fields').hidden = draft?.addExerciseOpen !== true;
+				document.querySelector('#session-exercise-name').value = draft?.newExerciseName || '';
+				document.querySelector('#session-exercise-sets').value = draft?.newExerciseSets || 3;
+				document.querySelector('#session-exercise-reps').value = draft?.newExerciseReps || 10;
 				trainingModal.classList.add('open');
 				trainingModal.setAttribute('aria-hidden', 'false');
 				document.body.style.overflow = 'hidden';
+				if (!draft || draft.timerRunning) startTimer();
+				else {
+					document.querySelector('#timer-toggle').innerHTML = '<i data-lucide="play"></i>';
+					document.querySelector('#timer-toggle').setAttribute('aria-label', 'Resume timer');
+					document.querySelector('#timer-toggle').title = 'Resume timer';
+					if (window.lucide) lucide.createIcons({ root: document.querySelector('#timer-toggle') });
+					renderTimer();
+				}
 				if (window.lucide) lucide.createIcons();
+				if (draft) showToast('Workout draft restored');
+				else saveTrainingDraft();
 			}
 
-			function addTrainingExercise(exercise, oneOff = false) {
+			function addTrainingExercise(exercise, oneOff = false, savedSets) {
 				const minimumSets = Number(exercise.minimumSets ?? exercise.sets) || 1;
 				const minimumReps = Number(exercise.minimumReps ?? exercise.reps) || 1;
 					const card = document.createElement('section');
@@ -498,7 +567,8 @@
 					setContainer.className = 'set-lines';
 					const setCount = Math.max(1, Math.min(minimumSets, 30));
 					const bests = getHistoricalBests(activeWorkout.id, exercise.name);
-					for (let setNumber = 0; setNumber < setCount; setNumber++) addSetRow(setContainer, minimumReps, '', bests);
+					if (Array.isArray(savedSets)) savedSets.forEach((set) => addSetRow(setContainer, set.reps || minimumReps, set.weight ?? '', bests));
+					else for (let setNumber = 0; setNumber < setCount; setNumber++) addSetRow(setContainer, minimumReps, '', bests);
 					const addButton = document.createElement('button');
 					addButton.className = 'add-set';
 					addButton.type = 'button';
@@ -516,6 +586,9 @@
 						card.append(removeExercise);
 					}
 					trainingExercises.append(card);
+					addButton.addEventListener('click', saveTrainingDraft);
+					card.addEventListener('input', saveTrainingDraft);
+					card.addEventListener('click', (event) => { if (event.target.closest('.remove-set')) setTimeout(saveTrainingDraft, 0); });
 				if (window.lucide) lucide.createIcons({ root: card });
 			}
 
@@ -557,14 +630,68 @@
 				document.body.style.overflow = '';
 			}
 
-			function closeTraining() {
-				stopTimer();
+			function exportWorkouts() {
+				const workouts = readWorkouts().map((workout) => ({
+					name: workout.name || `${workout.exercises[0]?.name || 'Training'} workout`,
+					exercises: workout.exercises.map((exercise) => ({ name: exercise.name, sets: Number(exercise.sets), reps: Number(exercise.reps) }))
+				}));
+				const file = new Blob([JSON.stringify({ format: 'forma-workouts', version: 1, workouts }, null, 2)], { type: 'application/json' });
+				const url = URL.createObjectURL(file);
+				const link = document.createElement('a');
+				link.href = url;
+				link.download = `forma-workouts-${new Date().toISOString().slice(0, 10)}.json`;
+				link.click();
+				setTimeout(() => URL.revokeObjectURL(url), 1000);
+				showToast(`${workouts.length} workout ${workouts.length === 1 ? 'routine' : 'routines'} exported`);
+			}
+
+			async function importWorkouts(file) {
+				try {
+					const payload = JSON.parse(await file.text());
+					const imported = Array.isArray(payload) ? payload : payload?.workouts;
+					if (!Array.isArray(imported) || (!Array.isArray(payload) && payload.format !== 'forma-workouts')) throw new Error('Unsupported workout file');
+					const existing = readWorkouts();
+					const signature = (workout) => JSON.stringify({
+						name: String(workout.name || `${workout.exercises[0]?.name || 'Training'} workout`).trim().toLocaleLowerCase(),
+						exercises: workout.exercises.map((exercise) => [String(exercise.name).trim().toLocaleLowerCase(), Number(exercise.sets), Number(exercise.reps)])
+					});
+					const existingSignatures = new Set(existing.map(signature));
+					const cleaned = imported.map((workout) => {
+						if (!workout || typeof workout.name !== 'string' || !workout.name.trim() || !Array.isArray(workout.exercises) || !workout.exercises.length) throw new Error('Invalid workout routine');
+						const exercises = workout.exercises.map((exercise) => {
+							const sets = Number(exercise.sets);
+							const reps = Number(exercise.reps);
+							if (!exercise || typeof exercise.name !== 'string' || !exercise.name.trim() || !Number.isInteger(sets) || sets < 1 || !Number.isInteger(reps) || reps < 1) throw new Error('Invalid exercise data');
+							return { name: exercise.name.trim(), sets, reps };
+						});
+						return { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), name: workout.name.trim(), date: new Date().toISOString(), exercises };
+					});
+					const additions = cleaned.filter((workout) => {
+						const key = signature(workout);
+						if (existingSignatures.has(key)) return false;
+						existingSignatures.add(key);
+						return true;
+					});
+					localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing, ...additions]));
+					render();
+					showToast(`${additions.length} routine${additions.length === 1 ? '' : 's'} imported${cleaned.length !== additions.length ? ' · duplicates skipped' : ''}`);
+				} catch {
+					showToast('Could not import that file. Choose a valid FORMA workout export.');
+				}
+			}
+
+			function closeTraining(completed = false) {
+				if (completed && activeWorkout) deleteTrainingDraft(activeWorkout.id);
+				else saveTrainingDraft();
+				clearInterval(timerInterval);
+				if (completed) timerRunning = false;
 				trainingModal.classList.remove('open');
 				trainingModal.setAttribute('aria-hidden', 'true');
 				document.body.style.overflow = '';
 				trainingForm.reset();
 				trainingExercises.replaceChildren();
 				activeWorkout = undefined;
+				if (!completed) render();
 			}
 
 			function elapsedTimerMs() {
@@ -589,9 +716,10 @@
 				document.querySelector('#timer-toggle').setAttribute('aria-label', 'Pause timer');
 				document.querySelector('#timer-toggle').title = 'Pause timer';
 				clearInterval(timerInterval);
-				timerInterval = setInterval(renderTimer, 250);
+				timerInterval = setInterval(() => { renderTimer(); saveTrainingDraft(); }, 1000);
 				if (window.lucide) lucide.createIcons({ root: document.querySelector('#timer-toggle') });
 				renderTimer();
+				saveTrainingDraft();
 			}
 
 			function pauseTimer() {
@@ -614,9 +742,10 @@
 				document.querySelector('#timer-toggle').setAttribute('aria-label', 'Pause timer');
 				document.querySelector('#timer-toggle').title = 'Pause timer';
 				clearInterval(timerInterval);
-				timerInterval = setInterval(renderTimer, 250);
+				timerInterval = setInterval(() => { renderTimer(); saveTrainingDraft(); }, 1000);
 				if (window.lucide) lucide.createIcons({ root: document.querySelector('#timer-toggle') });
 				renderTimer();
+				saveTrainingDraft();
 			}
 
 			function stopTimer() {
@@ -624,6 +753,7 @@
 				timerRunning = false;
 				clearInterval(timerInterval);
 				renderTimer();
+				saveTrainingDraft();
 			}
 
 			function formatDuration(seconds) {
@@ -657,11 +787,12 @@
 				if (!workouts.length) {
 					list.innerHTML = '<div class="empty-state"><div class="empty-mark"><i data-lucide="dumbbell"></i></div><strong>Your first session starts here</strong><p>Tap the menu button to log a workout.</p></div>';
 				} else {
+					const drafts = readTrainingDrafts();
 					list.innerHTML = workouts.map((workout) => `
 						<article class="workout-card">
-							<div class="workout-card-top"><span class="workout-date">${escapeHTML(workout.name || `${workout.exercises[0]?.name || 'Training'} workout`)} · ${formatDate(workout.date)}</span><span class="exercise-count">${workout.exercises.length} ${workout.exercises.length === 1 ? 'EXERCISE' : 'EXERCISES'}</span></div>
+							<div class="workout-card-top"><span class="workout-date">${escapeHTML(workout.name || `${workout.exercises[0]?.name || 'Training'} workout`)} · ${formatDate(workout.date)}</span><div>${drafts[workout.id] ? '<span class="draft-tag">DRAFT SAVED</span> ' : ''}<span class="exercise-count">${workout.exercises.length} ${workout.exercises.length === 1 ? 'EXERCISE' : 'EXERCISES'}</span></div></div>
 							<ul class="exercise-list">${workout.exercises.map((exercise) => `<li class="exercise-item"><span>${escapeHTML(exercise.name)}</span><span>${exercise.sets} × ${exercise.reps}</span></li>`).join('')}</ul>
-							<div class="workout-card-actions"><span class="workout-points"><i data-lucide="sparkles"></i> ${sessions.filter((session) => session.workoutId === workout.id).reduce((total, session) => total + (Number(session.points?.total) || 0), 0)} KP earned</span><div class="workout-actions"><button class="edit-button" type="button" data-edit-workout="${escapeHTML(workout.id || '')}" aria-label="Edit ${escapeHTML(workout.name || 'workout')}"><i data-lucide="pencil"></i> Edit</button><button class="start-button" type="button" data-start-workout="${escapeHTML(workout.id || '')}"><i data-lucide="play"></i> Start</button></div></div>
+							<div class="workout-card-actions"><span class="workout-points"><i data-lucide="sparkles"></i> ${sessions.filter((session) => session.workoutId === workout.id).reduce((total, session) => total + (Number(session.points?.total) || 0), 0)} KP earned</span><div class="workout-actions">${drafts[workout.id] ? `<button class="remove-set" type="button" data-delete-draft="${escapeHTML(workout.id)}" aria-label="Discard saved workout draft" title="Discard draft"><i data-lucide="trash-2"></i></button>` : ''}<button class="edit-button" type="button" data-edit-workout="${escapeHTML(workout.id || '')}" aria-label="Edit ${escapeHTML(workout.name || 'workout')}"><i data-lucide="pencil"></i> Edit</button><button class="start-button" type="button" data-start-workout="${escapeHTML(workout.id || '')}"><i data-lucide="play"></i> ${drafts[workout.id] ? 'Resume' : 'Start'}</button></div></div>
 						</article>`).join('');
 				}
 				const completedList = document.querySelector('#completed-list');
@@ -682,6 +813,13 @@
 			}
 
 			document.querySelector('#open-workout').addEventListener('click', () => openModal());
+			document.querySelector('#export-workouts').addEventListener('click', exportWorkouts);
+			document.querySelector('#import-workouts-button').addEventListener('click', () => document.querySelector('#import-workouts-file').click());
+			document.querySelector('#import-workouts-file').addEventListener('change', (event) => {
+				const [file] = event.target.files;
+				if (file) importWorkouts(file);
+				event.target.value = '';
+			});
 			document.querySelector('#open-store').addEventListener('click', openStore);
 			document.querySelector('#close-store').addEventListener('click', closeStore);
 			storeModal.addEventListener('click', (event) => { if (event.target === storeModal) closeStore(); });
@@ -720,6 +858,13 @@
 			document.querySelector('#cancel-workout').addEventListener('click', closeModal);
 			document.querySelector('#add-row').addEventListener('click', () => addRow());
 			list.addEventListener('click', (event) => {
+				const discardButton = event.target.closest('[data-delete-draft]');
+				if (discardButton) {
+					deleteTrainingDraft(discardButton.dataset.deleteDraft);
+					render();
+					showToast('Workout draft discarded');
+					return;
+				}
 				const editButton = event.target.closest('[data-edit-workout]');
 				if (editButton) {
 					const workout = readWorkouts().find((item) => item.id === editButton.dataset.editWorkout);
@@ -756,15 +901,21 @@
 					return;
 				}
 				addTrainingExercise({ name, minimumSets: sets, minimumReps: reps }, true);
+				saveTrainingDraft();
 				nameInput.value = '';
 				document.querySelector('#session-add-fields').hidden = true;
 				showToast('Added to this session only');
 			});
-			document.querySelector('#close-training').addEventListener('click', closeTraining);
-			document.querySelector('#cancel-training').addEventListener('click', closeTraining);
+			document.querySelector('#close-training').addEventListener('click', () => closeTraining());
+			document.querySelector('#cancel-training').addEventListener('click', () => closeTraining());
 			document.querySelector('#timer-toggle').addEventListener('click', () => timerRunning ? pauseTimer() : startTimer());
 			document.querySelector('#timer-reset').addEventListener('click', resetTimer);
 			trainingModal.addEventListener('click', (event) => { if (event.target === trainingModal) closeTraining(); });
+			trainingForm.addEventListener('input', saveTrainingDraft);
+			trainingForm.addEventListener('click', (event) => {
+				if (event.target.closest('.add-set, .remove-set, #show-session-add')) setTimeout(saveTrainingDraft, 0);
+			});
+			window.addEventListener('pagehide', saveTrainingDraft);
 			modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
 			document.addEventListener('keydown', (event) => {
 				if (event.key !== 'Escape') return;
@@ -834,7 +985,7 @@
 					const durationSeconds = Math.floor(elapsedTimerMs() / 1000);
 					sessions.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), workoutId: activeWorkout.id, workoutName: activeWorkout.name || `${activeWorkout.exercises[0]?.name || 'Training'} workout`, date: new Date().toISOString(), durationSeconds, exercises, points });
 					localStorage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(sessions));
-					closeTraining();
+					closeTraining(true);
 					render();
 					showToast(`Session saved · ${points.total} KP earned${points.weeklyBonus ? ' · 5 KP weekly bonus' : ''}`);
 				} catch {
