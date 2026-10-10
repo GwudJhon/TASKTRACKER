@@ -129,7 +129,7 @@
 		.training-modal { width: min(100%, 560px); max-height: min(90vh, 820px); overflow: auto; padding: 22px; border-radius: 22px; background: var(--white); transform: translateY(18px); transition: transform 220ms ease; }
 		.open .training-modal { transform: translateY(0); }
 		.training-subtitle { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
-		.session-timer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 14px 15px; border: 1px solid #52301f; border-radius: 13px; background: #211812; }
+		.session-timer { position: sticky; top: -22px; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -22px 0 16px; padding: 14px 15px; border: 1px solid #52301f; border-radius: 13px; background: #211812; box-shadow: 0 8px 16px #0005; }
 		.timer-readout { color: var(--lime); font: 24px var(--mono); font-variant-numeric: tabular-nums; }
 		.timer-caption { margin-bottom: 4px; color: var(--muted); font: 9px var(--mono); text-transform: uppercase; }
 		.timer-controls { display: flex; gap: 7px; }
@@ -138,7 +138,9 @@
 		.training-exercises { display: grid; gap: 12px; }
 		.training-exercise { padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
 		.training-exercise.one-off { border-style: dashed; }
-		.training-exercise-title { margin-bottom: 12px; font-size: 14px; font-weight: 700; }
+		.training-exercise-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 700; }
+		.remove-exercise { display: grid; flex: 0 0 30px; width: 30px; height: 30px; margin: -6px -6px -6px 0; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+		.remove-exercise:hover { background: #4a2720; color: #ff8954; }
 		.set-heading, .set-line { display: grid; grid-template-columns: 25px minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 7px; align-items: center; }
 		.set-heading { padding: 0 2px 7px; color: var(--muted); font: 9px var(--mono); text-transform: uppercase; }
 		.set-lines { display: grid; gap: 7px; }
@@ -157,6 +159,16 @@
 		.session-add-fields input[type="number"] { text-align: center; font-family: var(--mono); }
 		.session-add .add-row { margin-top: 9px; }
 		.completed-reward { color: var(--green); font: 10px var(--mono); white-space: nowrap; }
+		.history-form { display: grid; gap: 12px; }
+		.history-field { display: grid; gap: 6px; color: var(--muted); font: 9px var(--mono); text-transform: uppercase; }
+		.history-field input { width: 100%; min-width: 0; height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: #282320; color: var(--ink); font: 12px var(--sans); text-transform: none; }
+		.history-exercises { display: grid; gap: 10px; }
+		.history-exercise { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #24201d; }
+		.history-exercise-fields { display: grid; grid-template-columns: minmax(0, 1fr) 62px 62px 30px; gap: 7px; align-items: center; margin-bottom: 12px; }
+		.history-exercise-fields input { width: 100%; min-width: 0; height: 38px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: #282320; color: var(--ink); font-size: 11px; }
+		.history-exercise-fields input[type="number"] { padding: 0 3px; font-family: var(--mono); text-align: center; }
+		.history-add-exercise { justify-self: start; }
+		.history-set-heading { margin-bottom: 6px; }
 		.store-modal { width: min(100%, 560px); max-height: min(90vh, 800px); overflow: auto; padding: 22px; border-radius: 22px; background: var(--white); transform: translateY(18px); transition: transform 220ms ease; }
 		.open .store-modal { transform: translateY(0); }
 		.store-balance { margin-bottom: 18px; padding: 16px; border-radius: 13px; background: var(--ink); color: white; }
@@ -311,6 +323,24 @@
 			<div id="purchase-list"></div>
 		</section>
 	</div>
+	<div class="modal-backdrop" id="history-modal" aria-hidden="true">
+		<section class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
+			<div class="modal-header">
+				<div><div class="modal-kicker">Completed session</div><h2 id="history-title">Edit history</h2></div>
+				<button class="close-button" id="close-history" type="button" aria-label="Close history editor"><i data-lucide="x"></i></button>
+			</div>
+			<form id="history-form" class="history-form">
+				<label class="history-field">Workout name<input id="history-workout-name" type="text" maxlength="60" required></label>
+				<label class="history-field">Date and time<input id="history-date" type="datetime-local" required></label>
+				<div class="history-exercises" id="history-exercises"></div>
+				<button class="add-row history-add-exercise" id="add-history-exercise" type="button"><i data-lucide="plus"></i> Add exercise</button>
+				<div class="modal-actions">
+					<button class="action-button" id="cancel-history" type="button">Cancel</button>
+					<button class="action-button primary" type="submit">Save history</button>
+				</div>
+			</form>
+		</section>
+	</div>
 	<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 	<script>
@@ -328,9 +358,12 @@
 			const trainingForm = document.querySelector('#training-form');
 			const trainingExercises = document.querySelector('#training-exercises');
 			const storeModal = document.querySelector('#store-modal');
+			const historyModal = document.querySelector('#history-modal');
+			const historyExercises = document.querySelector('#history-exercises');
 			let toastTimer;
 			let activeWorkout;
 			let editingWorkoutId;
+			let editingSessionId;
 			let timerElapsedMs = 0;
 			let timerStartedAt = 0;
 			let timerInterval;
@@ -368,8 +401,8 @@
 				const drafts = readTrainingDrafts();
 				drafts[activeWorkout.id] = {
 					workoutId: activeWorkout.id,
-					exercises: [...trainingExercises.querySelectorAll('.training-exercise')].map((card) => ({
-						name: card.querySelector('.training-exercise-title').textContent,
+						exercises: [...trainingExercises.querySelectorAll('.training-exercise')].map((card) => ({
+							name: card.querySelector('.training-exercise-name').textContent,
 						minimumSets: Number(card.dataset.minimumSets),
 						minimumReps: Number(card.dataset.minimumReps),
 						oneOff: card.dataset.oneOff === 'true',
@@ -484,10 +517,12 @@
 				const normalizedName = normalizeExerciseName(exerciseName);
 				sessions.filter((session) => session.workoutId === workoutId).forEach((session) => {
 					session.exercises.filter((exercise) => normalizeExerciseName(exercise.name) === normalizedName).forEach((exercise) => {
-						exercise.sets.filter((set) => set.weight !== null && set.weight !== undefined && Number.isFinite(Number(set.weight))).forEach((set) => {
+						exercise.sets.forEach((set, setIndex) => {
+							if (set.weight === null || set.weight === undefined || !Number.isFinite(Number(set.weight))) return;
 							const reps = Number(set.reps);
 							const weight = Number(set.weight);
-							if (reps > 0 && (!bests.has(reps) || weight > bests.get(reps))) bests.set(reps, weight);
+							const key = `${setIndex + 1}:${reps}`;
+							if (reps > 0 && (!bests.has(key) || weight > bests.get(key))) bests.set(key, weight);
 						});
 					});
 				});
@@ -496,13 +531,16 @@
 
 			function updateSetSuggestion(row, bests) {
 				const reps = Number(row.querySelector('[aria-label="Reps completed"]').value);
+				const setNumber = Number(row.querySelector('.set-index').textContent);
 				const hint = row.querySelector('.set-suggestion');
-				hint.textContent = bests.has(reps) ? `Best at ${reps} reps: ${bests.get(reps)} kg` : `No weight history at ${reps || 'this'} reps`;
+				const key = `${setNumber}:${reps}`;
+				hint.textContent = bests.has(key) ? `Set ${setNumber} best at ${reps} reps: ${bests.get(key)} kg` : `No set ${setNumber} history at ${reps || 'this'} reps`;
 			}
 
 			function addSetRow(container, reps = 10, weight = '', bests = new Map()) {
 				const row = document.createElement('div');
 				row.className = 'set-line';
+				row.historicalBests = bests;
 				row.innerHTML = `<span class="set-index"></span><input type="number" min="1" max="999" value="${Number(reps) || 10}" inputmode="numeric" aria-label="Reps completed"><input type="number" min="0.1" max="9999" step="0.1" value="${weight}" placeholder="kg" inputmode="decimal" aria-label="Weight used in kilograms"><button class="remove-set" type="button" aria-label="Remove set"><i data-lucide="x"></i></button><span class="set-suggestion"></span>`;
 				row.querySelector('[aria-label="Reps completed"]').addEventListener('input', () => updateSetSuggestion(row, bests));
 				row.querySelector('.remove-set').addEventListener('click', () => {
@@ -516,7 +554,11 @@
 			}
 
 			function renumberSets(container) {
-				[...container.querySelectorAll('.set-index')].forEach((label, index) => { label.textContent = index + 1; });
+				[...container.querySelectorAll('.set-index')].forEach((label, index) => {
+					label.textContent = index + 1;
+					const row = label.closest('.set-line');
+					if (row.historicalBests) updateSetSuggestion(row, row.historicalBests);
+				});
 			}
 
 			function startWorkout(workout) {
@@ -559,7 +601,20 @@
 					card.dataset.oneOff = String(oneOff);
 					const title = document.createElement('div');
 					title.className = 'training-exercise-title';
-					title.textContent = exercise.name;
+					const titleText = document.createElement('span');
+					titleText.className = 'training-exercise-name';
+					titleText.textContent = exercise.name;
+					const removeExercise = document.createElement('button');
+					removeExercise.className = 'remove-exercise';
+					removeExercise.type = 'button';
+					removeExercise.setAttribute('aria-label', `Remove ${exercise.name} from this session`);
+					removeExercise.title = 'Remove exercise';
+					removeExercise.innerHTML = '<i data-lucide="trash-2"></i>';
+					removeExercise.addEventListener('click', () => {
+						card.remove();
+						saveTrainingDraft();
+					});
+					title.append(titleText, removeExercise);
 					const heading = document.createElement('div');
 					heading.className = 'set-heading';
 					heading.innerHTML = '<span>Set</span><span>Reps</span><span>Weight kg</span><span></span>';
@@ -575,16 +630,6 @@
 					addButton.innerHTML = '<i data-lucide="plus"></i> Add set';
 					addButton.addEventListener('click', () => addSetRow(setContainer, minimumReps, '', bests));
 					card.append(title, heading, setContainer, addButton);
-					if (oneOff) {
-						const removeExercise = document.createElement('button');
-						removeExercise.className = 'remove-set';
-						removeExercise.type = 'button';
-						removeExercise.setAttribute('aria-label', `Remove ${exercise.name} from today`);
-						removeExercise.innerHTML = '<i data-lucide="trash-2"></i>';
-						removeExercise.style.marginLeft = 'auto';
-						removeExercise.addEventListener('click', () => card.remove());
-						card.append(removeExercise);
-					}
 					trainingExercises.append(card);
 					addButton.addEventListener('click', saveTrainingDraft);
 					card.addEventListener('input', saveTrainingDraft);
@@ -600,7 +645,10 @@
 					const qualifyingSets = exercise.sets.filter((set) => set.weight !== null && set.reps >= minimumReps).length;
 					if (qualifyingSets >= minimumSets) points.completedExercises++;
 					const historicalBests = getHistoricalBests(workoutId, exercise.name, previousSessions);
-					const brokeRecord = exercise.sets.some((set) => set.weight !== null && historicalBests.has(set.reps) && set.weight > historicalBests.get(set.reps));
+					const brokeRecord = exercise.sets.some((set, setIndex) => {
+						const key = `${setIndex + 1}:${set.reps}`;
+						return set.weight !== null && historicalBests.has(key) && set.weight > historicalBests.get(key);
+					});
 					if (brokeRecord) points.personalRecords++;
 				});
 				points.total += points.completedExercises + points.personalRecords * 3 + points.weeklyBonus;
@@ -692,6 +740,70 @@
 				trainingExercises.replaceChildren();
 				activeWorkout = undefined;
 				if (!completed) render();
+			}
+
+			function addHistorySetRow(container, set = {}) {
+				const row = document.createElement('div');
+				row.className = 'set-line';
+				row.innerHTML = '<span class="set-index"></span><input type="number" min="1" max="999" value="' + (Number(set.reps) || 10) + '" inputmode="numeric" aria-label="Reps completed"><input type="number" min="0.1" max="9999" step="0.1" value="' + (set.weight ?? '') + '" placeholder="kg" inputmode="decimal" aria-label="Weight used in kilograms"><button class="remove-set" type="button" aria-label="Remove set"><i data-lucide="x"></i></button><span class="set-suggestion"></span>';
+				row.querySelector('.remove-set').addEventListener('click', () => {
+					row.remove();
+					renumberSets(container);
+				});
+				container.append(row);
+				renumberSets(container);
+				if (window.lucide) lucide.createIcons({ root: row });
+			}
+
+			function addHistoryExercise(exercise = {}) {
+				const minimumSets = Number(exercise.minimumSets ?? exercise.sets) || 3;
+				const minimumReps = Number(exercise.minimumReps ?? exercise.reps) || 10;
+				const card = document.createElement('section');
+				card.className = 'history-exercise';
+				card.dataset.oneOff = String(exercise.oneOff === true);
+				const fields = document.createElement('div');
+				fields.className = 'history-exercise-fields';
+				fields.innerHTML = '<input class="history-exercise-name" type="text" maxlength="60" placeholder="Exercise name" aria-label="Exercise name" required><input class="history-minimum-sets" type="number" min="1" max="30" value="' + minimumSets + '" aria-label="Minimum sets" required><input class="history-minimum-reps" type="number" min="1" max="999" value="' + minimumReps + '" aria-label="Minimum reps" required><button class="remove-set" type="button" aria-label="Remove exercise"><i data-lucide="trash-2"></i></button>';
+				fields.querySelector('.history-exercise-name').value = exercise.name || '';
+				fields.querySelector('.remove-set').addEventListener('click', () => card.remove());
+				const heading = document.createElement('div');
+				heading.className = 'set-heading history-set-heading';
+				heading.innerHTML = '<span>Set</span><span>Reps</span><span>Weight kg</span><span></span>';
+				const sets = document.createElement('div');
+				sets.className = 'set-lines';
+				if (Array.isArray(exercise.sets)) exercise.sets.forEach((set) => addHistorySetRow(sets, set));
+				else for (let setNumber = 0; setNumber < minimumSets; setNumber++) addHistorySetRow(sets, { reps: minimumReps });
+				const addSet = document.createElement('button');
+				addSet.className = 'add-set';
+				addSet.type = 'button';
+				addSet.innerHTML = '<i data-lucide="plus"></i> Add set';
+				addSet.addEventListener('click', () => addHistorySetRow(sets, { reps: minimumReps }));
+				card.append(fields, heading, sets, addSet);
+				historyExercises.append(card);
+				if (window.lucide) lucide.createIcons({ root: card });
+			}
+
+			function openHistoryEditor(session) {
+				editingSessionId = session.id;
+				document.querySelector('#history-workout-name').value = session.workoutName || '';
+				const date = new Date(session.date);
+				date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+				document.querySelector('#history-date').value = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 16);
+				historyExercises.replaceChildren();
+				(session.exercises || []).forEach((exercise) => addHistoryExercise(exercise));
+				historyModal.classList.add('open');
+				historyModal.setAttribute('aria-hidden', 'false');
+				document.body.style.overflow = 'hidden';
+				if (window.lucide) lucide.createIcons();
+			}
+
+			function closeHistoryEditor() {
+				historyModal.classList.remove('open');
+				historyModal.setAttribute('aria-hidden', 'true');
+				document.body.style.overflow = '';
+				document.querySelector('#history-form').reset();
+				historyExercises.replaceChildren();
+				editingSessionId = undefined;
 			}
 
 			function elapsedTimerMs() {
@@ -805,6 +917,17 @@
 						return `<li><span>${escapeHTML(exercise.name)}</span><span>${result}</span></li>`;
 					}).join('')}</ul><div class="summary-note">+${Number(session.points?.base) || 0} SESSION · +${Number(session.points?.completedExercises) || 0} FULL EXERCISE · +${Number(session.points?.personalRecords) || 0} PR · +${Number(session.points?.weeklyBonus) || 0} WEEK BONUS</div></article>`).join('');
 				}
+				[...completedList.querySelectorAll('.completed-card')].forEach((card, index) => {
+					const actions = document.createElement('div');
+					actions.className = 'workout-card-actions';
+					const editButton = document.createElement('button');
+					editButton.className = 'edit-button';
+					editButton.type = 'button';
+					editButton.dataset.editSession = sessions[index].id;
+					editButton.innerHTML = '<i data-lucide="pencil"></i> Edit history';
+					actions.append(editButton);
+					card.append(actions);
+				});
 				if (window.lucide) lucide.createIcons();
 			}
 
@@ -823,6 +946,16 @@
 			document.querySelector('#open-store').addEventListener('click', openStore);
 			document.querySelector('#close-store').addEventListener('click', closeStore);
 			storeModal.addEventListener('click', (event) => { if (event.target === storeModal) closeStore(); });
+			document.querySelector('#completed-list').addEventListener('click', (event) => {
+				const button = event.target.closest('[data-edit-session]');
+				if (!button) return;
+				const session = readTrainingSessions().find((item) => String(item.id) === button.dataset.editSession);
+				if (session) openHistoryEditor(session);
+			});
+			document.querySelector('#close-history').addEventListener('click', closeHistoryEditor);
+			document.querySelector('#cancel-history').addEventListener('click', closeHistoryEditor);
+			document.querySelector('#add-history-exercise').addEventListener('click', () => addHistoryExercise());
+			historyModal.addEventListener('click', (event) => { if (event.target === historyModal) closeHistoryEditor(); });
 			document.querySelector('#prize-form').addEventListener('submit', (event) => {
 				event.preventDefault();
 				const nameInput = document.querySelector('#prize-name');
@@ -920,6 +1053,7 @@
 			document.addEventListener('keydown', (event) => {
 				if (event.key !== 'Escape') return;
 				if (storeModal.classList.contains('open')) closeStore();
+					else if (historyModal.classList.contains('open')) closeHistoryEditor();
 				else if (trainingModal.classList.contains('open')) closeTraining();
 				else if (modal.classList.contains('open')) closeModal();
 			});
@@ -952,11 +1086,51 @@
 					showToast('Could not save. Check your browser storage settings.');
 				}
 			});
+			document.querySelector('#history-form').addEventListener('submit', (event) => {
+				event.preventDefault();
+				if (!editingSessionId || !event.currentTarget.reportValidity()) return;
+				const exercises = [...historyExercises.querySelectorAll('.history-exercise')].map((card) => ({
+					name: card.querySelector('.history-exercise-name').value.trim(),
+					minimumSets: Number(card.querySelector('.history-minimum-sets').value),
+					minimumReps: Number(card.querySelector('.history-minimum-reps').value),
+					oneOff: card.dataset.oneOff === 'true',
+					sets: [...card.querySelectorAll('.set-line')].map((row) => {
+						const weightValue = row.querySelector('[aria-label="Weight used in kilograms"]').value;
+						const weight = weightValue === '' ? null : Number(weightValue);
+						return {
+							done: weight !== null && weight > 0,
+							reps: Number(row.querySelector('[aria-label="Reps completed"]').value) || 0,
+							weight
+						};
+					})
+				}));
+				if (!exercises.length) {
+					showToast('A history session needs at least one exercise');
+					return;
+				}
+				try {
+					const sessions = readTrainingSessions();
+					const index = sessions.findIndex((session) => String(session.id) === String(editingSessionId));
+					if (index < 0) throw new Error('Session no longer exists');
+					sessions[index] = {
+						...sessions[index],
+						workoutName: document.querySelector('#history-workout-name').value.trim(),
+						date: new Date(document.querySelector('#history-date').value).toISOString(),
+						exercises
+					};
+					localStorage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(sessions));
+					closeHistoryEditor();
+					render();
+					showToast('History updated');
+				} catch {
+					showToast('Could not update history. Check your browser storage settings.');
+				}
+			});
 			trainingForm.addEventListener('submit', (event) => {
 				event.preventDefault();
 				if (!activeWorkout) return;
 				const exercises = [...trainingExercises.querySelectorAll('.training-exercise')].map((card) => ({
-					name: card.querySelector('.training-exercise-title').textContent,
+					name: card.querySelector('.training-exercise-name').textContent,
 					minimumSets: Number(card.dataset.minimumSets),
 					minimumReps: Number(card.dataset.minimumReps),
 					oneOff: card.dataset.oneOff === 'true',
