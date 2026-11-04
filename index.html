@@ -519,10 +519,9 @@
 					session.exercises.filter((exercise) => normalizeExerciseName(exercise.name) === normalizedName).forEach((exercise) => {
 						exercise.sets.forEach((set, setIndex) => {
 							if (set.weight === null || set.weight === undefined || !Number.isFinite(Number(set.weight))) return;
-							const reps = Number(set.reps);
 							const weight = Number(set.weight);
-							const key = `${setIndex + 1}:${reps}`;
-							if (reps > 0 && (!bests.has(key) || weight > bests.get(key))) bests.set(key, weight);
+							const setNumber = setIndex + 1;
+							if (!bests.has(setNumber) || weight > bests.get(setNumber)) bests.set(setNumber, weight);
 						});
 					});
 				});
@@ -530,11 +529,9 @@
 			}
 
 			function updateSetSuggestion(row, bests) {
-				const reps = Number(row.querySelector('[aria-label="Reps completed"]').value);
 				const setNumber = Number(row.querySelector('.set-index').textContent);
 				const hint = row.querySelector('.set-suggestion');
-				const key = `${setNumber}:${reps}`;
-				hint.textContent = bests.has(key) ? `Set ${setNumber} best at ${reps} reps: ${bests.get(key)} kg` : `No set ${setNumber} history at ${reps || 'this'} reps`;
+					hint.textContent = bests.has(setNumber) ? `Set ${setNumber} all-time best: ${bests.get(setNumber)} kg` : `No set ${setNumber} history yet`;
 			}
 
 			function addSetRow(container, reps = 10, weight = '', bests = new Map()) {
