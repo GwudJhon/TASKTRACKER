@@ -100,6 +100,7 @@
 		.exercise-item span:last-child { flex: 0 0 auto; color: var(--muted); font: 11px var(--mono); }
 		.completed-list { display: grid; gap: 10px; }
 		.completed-card { padding: 15px 17px; border: 1px solid var(--line); border-radius: 15px; background: var(--white); }
+		.completed-card .summary-note { white-space: normal; line-height: 1.6; }
 		.completed-exercises { margin: 11px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
 		.completed-exercises li { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
 		.completed-exercises li span:last-child { color: var(--muted); font: 10px var(--mono); white-space: nowrap; }
@@ -171,6 +172,17 @@
 		.history-set-heading { margin-bottom: 6px; }
 		.store-modal { width: min(100%, 560px); max-height: min(90vh, 800px); overflow: auto; padding: 22px; border-radius: 22px; background: var(--white); transform: translateY(18px); transition: transform 220ms ease; }
 		.open .store-modal { transform: translateY(0); }
+		.bonus-modal { width: min(100%, 560px); max-height: min(90vh, 800px); overflow: auto; padding: 22px; border-radius: 22px; background: var(--white); transform: translateY(18px); transition: transform 220ms ease; }
+		.open .bonus-modal { transform: translateY(0); }
+		.bonus-intro { margin: -7px 0 17px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+		.bonus-options { display: grid; gap: 9px; }
+		.bonus-option { display: grid; grid-template-columns: minmax(0, 1fr) 78px 78px; gap: 8px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #24201d; }
+		.bonus-option label { color: var(--ink); font-size: 11px; font-weight: 700; }
+		.bonus-option small { display: block; margin-top: 4px; color: var(--muted); font: 8px var(--mono); font-weight: 400; }
+		.bonus-option input { width: 100%; min-width: 0; height: 39px; padding: 0 6px; border: 1px solid var(--line); border-radius: 8px; background: #282320; color: var(--ink); font: 11px var(--mono); text-align: center; }
+		.bonus-column-labels { display: grid; grid-template-columns: minmax(0, 1fr) 78px 78px; gap: 8px; margin: 0 12px 6px; color: var(--muted); font: 8px var(--mono); text-align: center; text-transform: uppercase; }
+		.bonus-column-labels span:first-child { text-align: left; }
+		.bonus-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
 		.store-balance { margin-bottom: 18px; padding: 16px; border-radius: 13px; background: var(--ink); color: white; }
 		.store-balance-label { color: #d0d4ca; font: 10px var(--mono); text-transform: uppercase; }
 		.store-balance-value { margin-top: 6px; font-size: 28px; font-weight: 700; }
@@ -192,11 +204,11 @@
 		.toast { position: fixed; z-index: 8; right: 18px; bottom: 18px; left: 18px; width: max-content; max-width: calc(100% - 36px); margin: auto; padding: 12px 16px; border-radius: 10px; background: var(--ink); color: white; font-size: 12px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: 180ms ease; }
 		.toast.show { opacity: 1; transform: translateY(0); }
 		@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-		@media (min-width: 560px) { .app-shell { padding: 30px 30px 60px; } .modal-backdrop { align-items: center; } .modal { padding: 28px; } .training-modal { padding: 28px; } .training-actions { bottom: -28px; margin: 18px -28px -28px; padding: 13px 28px 22px; } }
-		@media (max-width: 390px) { .app-shell { padding-right: 16px; padding-left: 16px; } .stats { grid-template-columns: 1fr 1fr; } .stat { padding: 15px 9px; } .stat-value { font-size: 24px; } .stat:last-child { grid-column: 1 / -1; min-height: 82px; border-top: 1px solid var(--line); border-left: 0; } .summary-note { white-space: normal; } .modal { padding: 18px 15px; } .rows-heading, .exercise-row { grid-template-columns: minmax(0, 1fr) 54px 54px 30px; gap: 6px; } .exercise-row input { padding: 0 7px; font-size: 12px; } .exercise-row input[type="number"] { padding: 0 2px; } .remove-row { width: 30px; } .training-modal { padding: 18px 15px; } .training-actions { bottom: -18px; margin: 16px -15px -18px; padding: 12px 15px 16px; } .set-heading, .set-line { grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 26px; gap: 5px; } .session-add-fields { grid-template-columns: minmax(0, 1fr) 58px 58px; } }
+		@media (min-width: 560px) { .app-shell { padding: 30px 30px 60px; } .modal-backdrop { align-items: center; } .modal { padding: 28px; } .training-modal { padding: 28px; } .training-actions { bottom: -28px; margin: 18px -28px -28px; padding: 13px 28px 22px; } .bonus-modal { padding: 28px; } }
+		@media (max-width: 390px) { .app-shell { padding-right: 16px; padding-left: 16px; } .stats { grid-template-columns: 1fr 1fr; } .stat { padding: 15px 9px; } .stat-value { font-size: 24px; } .stat:last-child { grid-column: 1 / -1; min-height: 82px; border-top: 1px solid var(--line); border-left: 0; } .summary-note { white-space: normal; } .modal { padding: 18px 15px; } .rows-heading, .exercise-row { grid-template-columns: minmax(0, 1fr) 54px 54px 30px; gap: 6px; } .exercise-row input { padding: 0 7px; font-size: 12px; } .exercise-row input[type="number"] { padding: 0 2px; } .remove-row { width: 30px; } .training-modal { padding: 18px 15px; } .training-actions { bottom: -18px; margin: 16px -15px -18px; padding: 12px 15px 16px; } .set-heading, .set-line { grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 26px; gap: 5px; } .session-add-fields { grid-template-columns: minmax(0, 1fr) 58px 58px; } .bonus-modal { padding: 18px 15px; } .bonus-option, .bonus-column-labels { grid-template-columns: minmax(0, 1fr) 58px 58px; gap: 6px; } .bonus-option { padding: 9px; } .bonus-option label { font-size: 10px; } }
 		@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 		body, .app-shell { color: var(--ink); }
-		.stats, .workout-card, .completed-card, .modal, .training-modal, .store-modal { background: var(--white); }
+		.stats, .workout-card, .completed-card, .modal, .training-modal, .store-modal, .bonus-modal { background: var(--white); }
 		.exercise-row input, .routine-name, .session-add-fields input, .store-form input, .set-line input[type="number"] { border-color: var(--line); background: #282320; color: var(--ink); }
 		.training-exercise { border-color: var(--line); background: #24201d; }
 		.session-add { border-color: var(--line); background: #211e1b; }
@@ -220,7 +232,7 @@
 		<header class="topbar">
 			<button class="icon-button" id="open-workout" type="button" aria-label="Register a workout" title="Register a workout"><i data-lucide="menu"></i></button>
 			<div class="brand">F<span>O</span>RMA</div>
-			<div class="header-end"><button class="icon-button store-open" id="open-store" type="button" aria-label="Open Kuiper store" title="Kuiper store"><i data-lucide="shopping-bag"></i></button><div class="today" id="today-label"></div></div>
+			<div class="header-end"><button class="icon-button store-open" id="open-bonuses" type="button" aria-label="Configure KP bonuses" title="KP bonuses"><i data-lucide="settings-2"></i></button><button class="icon-button store-open" id="open-store" type="button" aria-label="Open Kuiper store" title="Kuiper store"><i data-lucide="shopping-bag"></i></button><div class="today" id="today-label"></div></div>
 		</header>
 
 		<section class="stats" aria-label="Training summary">
@@ -323,6 +335,27 @@
 			<div id="purchase-list"></div>
 		</section>
 	</div>
+	<div class="modal-backdrop" id="bonus-modal" aria-hidden="true">
+		<section class="bonus-modal" role="dialog" aria-modal="true" aria-labelledby="bonus-title">
+			<div class="modal-header">
+				<div><div class="modal-kicker">Kuiper rewards</div><h2 id="bonus-title">KP bonuses</h2></div>
+				<button class="close-button" id="close-bonuses" type="button" aria-label="Close KP bonus settings"><i data-lucide="x"></i></button>
+			</div>
+			<p class="bonus-intro">Choose how many KP each achievement earns. Threshold rewards apply once for every complete group. Changes affect future sessions only.</p>
+			<form id="bonus-form">
+				<div class="bonus-column-labels"><span>Achievement</span><span>Every</span><span>KP</span></div>
+				<div class="bonus-options">
+					<div class="bonus-option"><label for="bonus-session-kp">Finished a workout (session)<small>Reward for saving a workout</small></label><span></span><input id="bonus-session-kp" name="sessionKp" type="number" min="0" max="100000" step="1" required aria-label="KP per completed workout"></div>
+					<div class="bonus-option"><label for="bonus-sets-every">Finished sets<small>Completed sets with a weight entered</small></label><input id="bonus-sets-every" name="setsEvery" type="number" min="1" max="999" step="1" required aria-label="Completed sets per bonus"><input id="bonus-sets-kp" name="setsKp" type="number" min="0" max="100000" step="1" required aria-label="KP per set threshold"></div>
+					<div class="bonus-option"><label for="bonus-weight-kp">Weight personal best<small>Reward each new exercise weight record</small></label><span></span><input id="bonus-weight-kp" name="weightPrKp" type="number" min="0" max="100000" step="1" required aria-label="KP per weight personal best"></div>
+					<div class="bonus-option"><label for="bonus-reps-kp">Reps personal best<small>Reward each new exercise reps record</small></label><span></span><input id="bonus-reps-kp" name="repsPrKp" type="number" min="0" max="100000" step="1" required aria-label="KP per reps personal best"></div>
+					<div class="bonus-option"><label for="bonus-exercises-every">Extra exercises in a workout<small>Based on fully completed exercises</small></label><input id="bonus-exercises-every" name="exercisesEvery" type="number" min="1" max="999" step="1" required aria-label="Completed exercises per bonus"><input id="bonus-exercises-kp" name="exercisesKp" type="number" min="0" max="100000" step="1" required aria-label="KP per exercise threshold"></div>
+					<div class="bonus-option"><label for="bonus-weekly-every">Extra sessions in a week<small>Reward for every group of sessions completed that week</small></label><input id="bonus-weekly-every" name="weeklyEvery" type="number" min="1" max="999" step="1" required aria-label="Sessions per weekly bonus"><input id="bonus-weekly-kp" name="weeklyKp" type="number" min="0" max="100000" step="1" required aria-label="KP per weekly session threshold"></div>
+				</div>
+				<div class="bonus-actions"><button class="action-button" id="cancel-bonuses" type="button">Cancel</button><button class="action-button primary" type="submit">Save bonuses</button></div>
+			</form>
+		</section>
+	</div>
 	<div class="modal-backdrop" id="history-modal" aria-hidden="true">
 		<section class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
 			<div class="modal-header">
@@ -350,6 +383,8 @@
 			const TRAINING_DRAFTS_KEY = 'forma-training-drafts-v1';
 			const PRIZES_STORAGE_KEY = 'forma-kuiper-prizes-v1';
 			const PURCHASES_STORAGE_KEY = 'forma-kuiper-purchases-v1';
+			const BONUS_SETTINGS_KEY = 'forma-kuiper-bonus-settings-v1';
+			const DEFAULT_BONUS_SETTINGS = { sessionKp: 5, setsEvery: 10, setsKp: 1, weightPrKp: 3, repsPrKp: 2, exercisesEvery: 1, exercisesKp: 1, weeklyEvery: 3, weeklyKp: 5 };
 			const modal = document.querySelector('#workout-modal');
 			const form = document.querySelector('#workout-form');
 			const rowsContainer = document.querySelector('#exercise-rows');
@@ -358,6 +393,7 @@
 			const trainingForm = document.querySelector('#training-form');
 			const trainingExercises = document.querySelector('#training-exercises');
 			const storeModal = document.querySelector('#store-modal');
+			const bonusModal = document.querySelector('#bonus-modal');
 			const historyModal = document.querySelector('#history-modal');
 			const historyExercises = document.querySelector('#history-exercises');
 			let toastTimer;
@@ -395,6 +431,20 @@
 					return {};
 				}
 			};
+
+			function readBonusSettings() {
+				try {
+					const saved = JSON.parse(localStorage.getItem(BONUS_SETTINGS_KEY) || '{}');
+					return Object.fromEntries(Object.entries(DEFAULT_BONUS_SETTINGS).map(([key, fallback]) => {
+						const value = Number(saved?.[key]);
+						const minimum = key.endsWith('Every') ? 1 : 0;
+						const maximum = key.endsWith('Every') ? 999 : 100000;
+						return [key, Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, Math.floor(value))) : fallback];
+					}));
+				} catch {
+					return { ...DEFAULT_BONUS_SETTINGS };
+				}
+			}
 
 			function saveTrainingDraft() {
 				if (!activeWorkout) return;
@@ -512,6 +562,12 @@
 				return String(name).trim().toLocaleLowerCase();
 			}
 
+			function getLastCompletedSession(workoutId) {
+				return readTrainingSessions()
+					.filter((session) => String(session.workoutId) === String(workoutId) && Array.isArray(session.exercises))
+					.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+			}
+
 			function getHistoricalBests(workoutId, exerciseName, sessions = readTrainingSessions()) {
 				const bests = new Map();
 				const normalizedName = normalizeExerciseName(exerciseName);
@@ -561,12 +617,13 @@
 			function startWorkout(workout) {
 				activeWorkout = workout;
 				const draft = readTrainingDrafts()[workout.id];
+				const lastSession = draft ? undefined : getLastCompletedSession(workout.id);
 				timerElapsedMs = Number(draft?.timerElapsedMs) || 0;
 				timerRunning = false;
 				if (draft?.timerRunning && Number.isFinite(draft.timerSavedAt)) timerElapsedMs += Math.max(0, Date.now() - draft.timerSavedAt);
 				document.querySelector('#training-title').textContent = workout.name || `${workout.exercises[0]?.name || 'Training'} workout`;
 				trainingExercises.replaceChildren();
-				const exercisesToRender = draft?.exercises || workout.exercises;
+				const exercisesToRender = draft?.exercises || lastSession?.exercises || workout.exercises;
 				exercisesToRender.forEach((exercise) => addTrainingExercise(exercise, exercise.oneOff === true, exercise.sets));
 				document.querySelector('#session-add-fields').hidden = draft?.addExerciseOpen !== true;
 				document.querySelector('#session-exercise-name').value = draft?.newExerciseName || '';
@@ -585,6 +642,7 @@
 				}
 				if (window.lucide) lucide.createIcons();
 				if (draft) showToast('Workout draft restored');
+				else if (lastSession) showToast('Last completed workout loaded');
 				else saveTrainingDraft();
 			}
 
@@ -635,20 +693,50 @@
 			}
 
 			function scoreSession(workoutId, exercises, previousSessions, sessionsThisWeek) {
-				const points = { base: 5, completedExercises: 0, personalRecords: 0, weeklyBonus: sessionsThisWeek >= 3 ? 5 : 0, total: 5 };
+				const settings = readBonusSettings();
+				const points = {
+					sessionBonus: settings.sessionKp,
+					completedSets: 0,
+					setsBonus: 0,
+					completedExercises: 0,
+					exerciseBonus: 0,
+					weightPrCount: 0,
+					weightPrBonus: 0,
+					repsPrCount: 0,
+					repsPrBonus: 0,
+					weeklyBonus: 0,
+					total: 0
+				};
 				exercises.forEach((exercise) => {
 					const minimumSets = Number(exercise.minimumSets) || 1;
 					const minimumReps = Number(exercise.minimumReps) || 1;
-					const qualifyingSets = exercise.sets.filter((set) => set.weight !== null && set.reps >= minimumReps).length;
-					if (qualifyingSets >= minimumSets) points.completedExercises++;
-					const historicalBests = getHistoricalBests(workoutId, exercise.name, previousSessions);
-					const brokeRecord = exercise.sets.some((set, setIndex) => {
-						const key = `${setIndex + 1}:${set.reps}`;
-						return set.weight !== null && historicalBests.has(key) && set.weight > historicalBests.get(key);
-					});
-					if (brokeRecord) points.personalRecords++;
+					const completedSets = exercise.sets.filter((set) => Number(set.weight) > 0 && Number(set.reps) > 0);
+					points.completedSets += completedSets.length;
+					if (completedSets.filter((set) => Number(set.reps) >= minimumReps).length >= minimumSets) points.completedExercises++;
+
+					const normalizedName = normalizeExerciseName(exercise.name);
+					const historicalSets = previousSessions
+						.filter((session) => String(session.workoutId) === String(workoutId))
+						.flatMap((session) => session.exercises || [])
+						.filter((item) => normalizeExerciseName(item.name) === normalizedName)
+						.flatMap((item) => item.sets || [])
+						.filter((set) => Number(set.weight) > 0 && Number(set.reps) > 0);
+					const previousMaxWeight = historicalSets.reduce((best, set) => Math.max(best, Number(set.weight)), 0);
+					const previousMaxReps = historicalSets.reduce((best, set) => Math.max(best, Number(set.reps)), 0);
+					const sessionMaxWeight = completedSets.reduce((best, set) => Math.max(best, Number(set.weight)), 0);
+					const sessionMaxReps = completedSets.reduce((best, set) => Math.max(best, Number(set.reps)), 0);
+					if (historicalSets.length && sessionMaxWeight > previousMaxWeight) points.weightPrCount++;
+					if (historicalSets.length && sessionMaxReps > previousMaxReps) points.repsPrCount++;
 				});
-				points.total += points.completedExercises + points.personalRecords * 3 + points.weeklyBonus;
+				points.setsBonus = Math.floor(points.completedSets / settings.setsEvery) * settings.setsKp;
+				points.exerciseBonus = Math.floor(points.completedExercises / settings.exercisesEvery) * settings.exercisesKp;
+				points.weightPrBonus = points.weightPrCount * settings.weightPrKp;
+				points.repsPrBonus = points.repsPrCount * settings.repsPrKp;
+				const sessionsBefore = Math.max(0, sessionsThisWeek);
+				const sessionsAfter = sessionsBefore + 1;
+				const weeklyMilestones = Math.floor(sessionsAfter / settings.weeklyEvery) - Math.floor(sessionsBefore / settings.weeklyEvery);
+				points.weeklyBonus = weeklyMilestones * settings.weeklyKp;
+				points.total = points.sessionBonus + points.setsBonus + points.exerciseBonus + points.weightPrBonus + points.repsPrBonus + points.weeklyBonus;
 				return points;
 			}
 
@@ -672,6 +760,21 @@
 			function closeStore() {
 				storeModal.classList.remove('open');
 				storeModal.setAttribute('aria-hidden', 'true');
+				document.body.style.overflow = '';
+			}
+
+			function openBonusSettings() {
+				const settings = readBonusSettings();
+				const bonusForm = document.querySelector('#bonus-form');
+				Object.entries(settings).forEach(([key, value]) => { bonusForm.elements.namedItem(key).value = value; });
+				bonusModal.classList.add('open');
+				bonusModal.setAttribute('aria-hidden', 'false');
+				document.body.style.overflow = 'hidden';
+			}
+
+			function closeBonusSettings() {
+				bonusModal.classList.remove('open');
+				bonusModal.setAttribute('aria-hidden', 'true');
 				document.body.style.overflow = '';
 			}
 
@@ -873,6 +976,13 @@
 				return hours ? `${hours}h ${minutes}m` : minutes ? `${minutes}m ${remainder}s` : `${remainder}s`;
 			}
 
+			function summarizeRewards(points = {}) {
+				if (Object.prototype.hasOwnProperty.call(points, 'sessionBonus')) {
+					return `+${Number(points.sessionBonus) || 0} SESSION · +${Number(points.setsBonus) || 0} SETS · +${Number(points.weightPrBonus) || 0} WEIGHT PR · +${Number(points.repsPrBonus) || 0} REPS PR · +${Number(points.exerciseBonus) || 0} EXERCISES · +${Number(points.weeklyBonus) || 0} WEEK BONUS`;
+				}
+				return `+${Number(points.base) || 0} SESSION · +${Number(points.completedExercises) || 0} FULL EXERCISE · +${Number(points.personalRecords) || 0} PR · +${Number(points.weeklyBonus) || 0} WEEK BONUS`;
+			}
+
 			function render() {
 				const workouts = readWorkouts().sort((a, b) => new Date(b.date) - new Date(a.date));
 				const sessions = readTrainingSessions().sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -912,7 +1022,7 @@
 						const completedSets = exercise.sets.filter((set) => set.done);
 						const result = completedSets.length ? `${completedSets.length} ${completedSets.length === 1 ? 'set' : 'sets'} · ${completedSets.map((set) => `${set.reps}×${set.weight === null ? '—' : `${set.weight}kg`}`).join(', ')}` : 'Not performed';
 						return `<li><span>${escapeHTML(exercise.name)}</span><span>${result}</span></li>`;
-					}).join('')}</ul><div class="summary-note">+${Number(session.points?.base) || 0} SESSION · +${Number(session.points?.completedExercises) || 0} FULL EXERCISE · +${Number(session.points?.personalRecords) || 0} PR · +${Number(session.points?.weeklyBonus) || 0} WEEK BONUS</div></article>`).join('');
+					}).join('')}</ul><div class="summary-note">${summarizeRewards(session.points)}</div></article>`).join('');
 				}
 				[...completedList.querySelectorAll('.completed-card')].forEach((card, index) => {
 					const actions = document.createElement('div');
@@ -939,6 +1049,23 @@
 				const [file] = event.target.files;
 				if (file) importWorkouts(file);
 				event.target.value = '';
+			});
+			document.querySelector('#open-bonuses').addEventListener('click', openBonusSettings);
+			document.querySelector('#close-bonuses').addEventListener('click', closeBonusSettings);
+			document.querySelector('#cancel-bonuses').addEventListener('click', closeBonusSettings);
+			bonusModal.addEventListener('click', (event) => { if (event.target === bonusModal) closeBonusSettings(); });
+			document.querySelector('#bonus-form').addEventListener('submit', (event) => {
+				event.preventDefault();
+				if (!event.currentTarget.reportValidity()) return;
+				const formData = new FormData(event.currentTarget);
+				const settings = Object.fromEntries(Object.keys(DEFAULT_BONUS_SETTINGS).map((key) => [key, Number(formData.get(key))]));
+				try {
+					localStorage.setItem(BONUS_SETTINGS_KEY, JSON.stringify(settings));
+					closeBonusSettings();
+					showToast('KP bonus settings saved');
+				} catch {
+					showToast('Could not save KP settings. Check your browser storage settings.');
+				}
 			});
 			document.querySelector('#open-store').addEventListener('click', openStore);
 			document.querySelector('#close-store').addEventListener('click', closeStore);
@@ -1049,8 +1176,9 @@
 			modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
 			document.addEventListener('keydown', (event) => {
 				if (event.key !== 'Escape') return;
-				if (storeModal.classList.contains('open')) closeStore();
-					else if (historyModal.classList.contains('open')) closeHistoryEditor();
+				if (bonusModal.classList.contains('open')) closeBonusSettings();
+				else if (storeModal.classList.contains('open')) closeStore();
+				else if (historyModal.classList.contains('open')) closeHistoryEditor();
 				else if (trainingModal.classList.contains('open')) closeTraining();
 				else if (modal.classList.contains('open')) closeModal();
 			});
@@ -1158,7 +1286,7 @@
 					localStorage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(sessions));
 					closeTraining(true);
 					render();
-					showToast(`Session saved · ${points.total} KP earned${points.weeklyBonus ? ' · 5 KP weekly bonus' : ''}`);
+					showToast(`Session saved · ${points.total} KP earned${points.weeklyBonus ? ` · ${points.weeklyBonus} KP weekly bonus` : ''}`);
 				} catch {
 					showToast('Could not save. Check your browser storage settings.');
 				}
